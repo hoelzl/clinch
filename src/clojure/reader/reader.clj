@@ -6,23 +6,30 @@
 	   (java.util.regex Pattern Matcher)
 	   (java.util ArrayList List Map)
 	   (java.math BigInteger BigDecimal)
-	   (clojure.lang IFn LineNumberingPushbackReader RT)))
+	   (clojure.lang IFn
+			 LineNumberingPushbackReader 
+			 Numbers
+			 RT)))
 
 (in-ns 'clojure.reader)
 
 
 (def $symbol-pattern 
-     #"[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")
+     #"[:]?([\D&&[^/]].*/)?([\D&&[^/]][^/]*)")
 (def $int-pattern 
-     #"([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)\\.?")
+     #"([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)\.?")
 (def $ratio-pattern 
      #"([-+]?[0-9]+)/([0-9]+)")
 (def $float-pattern 
-     #"[-+]?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?[M]?")
+     #"[-+]?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?[M]?")
 (def $slash '/)
 (def $clojure-slash `/)
 
 (def $macros {})
+
+(defn macro? [char]
+  (not (not ($macros char))))
+
 (defn get-macro [char]
   ($macros char))
 
@@ -36,7 +43,45 @@
 
 ;;; Implementation of ReaderException in separate source file.
 
-(defn read-number [])
+(defn match-number [string]
+  (let [match (re-find $int-pattern string)]
+    (if match
+      (if (not (nil? (match 2)))
+	0
+	(let [negate? (= (match 1) "-")
+	      [number radix] (cond (not (nil? (match 3)))
+				   [(match 3) 10]
+				   (not (nil? (match 4)))
+				   [(match 4) 16]
+				   (not (nil? (match 5)))
+				   [(match 5) 8]
+				   (not (nil? (match 7)))
+				   [(match 7) (. Integer (parseInt (match 6)))])]
+	  (if (nil? number)
+	    nil
+	    (let [n (BigInteger. number radix)
+		  m (if negate? (. n negate) n)]
+	      (. Numbers (reduce m))))))
+      ;; TODO: implement floating-point and rational matchers
+      )))
+
+(defn read-number [reader initial-char]
+  (let [sb (StringBuilder.)]
+    (. sb (append initial-char))
+    (loop [c (. reader read)]
+      (if (or (= -1 c) (clojure-whitespace? c) (macro? c))
+	(unread reader c)
+	(let [c (char c)]
+	  (. sb (append c))
+	  (recur (. reader read)))))
+    (let [string (. sb toString)
+	  number (match-number string)]
+      (if (nil? number)
+	(throw (NumberFormatException. 
+		(str "Invalid number: " string)))
+	number))))
+
+
 (defn read-token [])
 (defn interpret-token [])
 
@@ -56,7 +101,7 @@
 	      nil
 	      number))
 
-	  (get-macro char)
+	  (macro? char)
 	  (let [result (get-macro char)]
 	    (cond (. RT (suppressRead))
 		  nil
