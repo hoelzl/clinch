@@ -6,12 +6,10 @@
 	   (java.util.regex Pattern Matcher)
 	   (java.util ArrayList List Map)
 	   (java.math BigInteger BigDecimal)
-	   (clojure.lang LineNumberingPushbackReader RT)))
+	   (clojure.lang IFn LineNumberingPushbackReader RT)))
 
 (in-ns 'clojure.reader)
 
-
-(import '(clojure.lang IFn))
 
 (def $symbol-pattern 
      #"[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")
@@ -28,13 +26,9 @@
 (defn get-macro [char]
   ($macros char))
 
-(defn read-string
-  "Default reader function for double quote."
-  [])
-
 (defn clojure-whitespace? [char]
   (or (. Character (isWhitespace char))
-      (= char \,)))
+      (= (int char) (int \,))))
 
 (defn unread [reader char]
   (if (not (= char -1))
@@ -93,6 +87,7 @@
 	      nil
 	      (interpret-token token))))))
 
+
 (defn read [reader eof-is-error? eof-value recursive?]
   (try
    (read-unprotected reader eof-is-error? eof-value recursive?)
@@ -101,6 +96,11 @@
 	     (not (instance? LineNumberingPushbackReader reader)))
        (throw e)
        (throw (clojure.reader.ReaderException. (. reader getLineNumber) e))))))
+
+
+(defn read-string
+  "Default reader function for double quote."
+  [])
 
 (defn read-comment
   "Default reader function for semicolon.
@@ -111,6 +111,10 @@ Also default dispatch reader function for exclamation mark."
   "Returns a reader that wraps its result with 'wrapper'."
   [wrapper]
   wrapper)
+
+(def read-quote (make-wrapping-reader 'quote))
+(def read-deref (make-wrapping-reader 'deref))
+(def read-meta (make-wrapping-reader 'meta))
 
 (defn read-syntax-quote
   "Default reader function for backquote."
@@ -150,9 +154,9 @@ Also default dispatch reader function for exclamation mark."
 
 (def $macros (ref {\" read-string
 		   \; read-comment
-		   \' (make-wrapping-reader 'quote)
-		   \@ (make-wrapping-reader 'deref)
-		   \^ (make-wrapping-reader 'meta)
+		   \' read-quote
+		   \@ read-deref
+		   \^ read-meta
 		   \` read-syntax-quote
 		   \~ read-unquote
 		   \( read-list
@@ -165,7 +169,7 @@ Also default dispatch reader function for exclamation mark."
 		   \% read-arg
 		   \# read-dispatch}))
 
-(defn read-meta
+(defn read-sharp-meta
   "Default reader dispatch function for caret."
   [])
 
@@ -193,7 +197,7 @@ Also default dispatch reader function for exclamation mark."
   "Default reader dispatch function for less-than sign."
   [])
 
-(def $dispatch-macros (ref {\^ read-meta
+(def $dispatch-macros (ref {\^ read-sharp-meta
 			    \' read-var
 			    \" read-regex
 			    \( read-fn
