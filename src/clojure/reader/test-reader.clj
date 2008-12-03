@@ -42,7 +42,7 @@
 (deftest read-unprotected-eof
   (is (= (read-unprotected (make-reader "") false ::eof false) ::eof)))
 
-(deftest read-uprotected-whitespace
+(deftest read-unprotected-whitespace
   (is (= (read-unprotected (make-reader " ") false ::eof false) ::eof))
   (is (= (read-unprotected (make-reader ",") false ::eof false) ::eof))
   (is (= (read-unprotected (make-reader ",,,   ") false ::eof false) ::eof))
