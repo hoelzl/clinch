@@ -1,9 +1,7 @@
-(in-ns 'clojure.reader)
+(ns clojure.reader.ReaderException
+  (:gen-class :extends Exception
+	      :init init-reader-exception
+	      :constructors {[int, Throwable] [Throwable]}
+	      :state line))
 
-(gen-class :name clojure.reader.ReaderException
-	   :extends Exception
-	   :init init-reader-exception
-	   :constructors {[int, Throwable] [Throwable]}
-	   :state line)
 
-(comment (compile 'clojure.reader.ReaderException))
