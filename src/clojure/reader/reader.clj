@@ -12,16 +12,28 @@
 
 (import '(clojure.lang IFn))
 
-(def $symbol-pattern #"[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")
-(def $int-pattern #"([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)\\.?")
-(def $ratio-pattern #"([-+]?[0-9]+)/([0-9]+)")
-(def $float-pattern #"[-+]?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?[M]?")
+(def $symbol-pattern 
+     #"[:]?([\\D&&[^/]].*/)?([\\D&&[^/]][^/]*)")
+(def $int-pattern 
+     #"([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)\\.?")
+(def $ratio-pattern 
+     #"([-+]?[0-9]+)/([0-9]+)")
+(def $float-pattern 
+     #"[-+]?[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?[M]?")
 (def $slash '/)
 (def $clojure-slash `/)
 
 (defn read-string
   "Default reader function for double quote."
   [])
+
+(defn clojure-whitespace? [char]
+  (or (. Character (isWhitespace char))
+      (= char \,)))
+
+(defn unread [reader char]
+  (if (not (= char -1))
+    (. reader (unread char))))
 
 (defn read-comment
   "Default reader function for semicolon.
