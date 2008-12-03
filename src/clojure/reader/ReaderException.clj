@@ -4,4 +4,5 @@
 	      :constructors {[int, Throwable] [Throwable]}
 	      :state line))
 
-
+(defn -init-reader-exception [line, cause]
+  [[cause] line])
