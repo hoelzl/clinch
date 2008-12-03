@@ -1,11 +1,12 @@
 ;;; Implementation of the Clojure reader in Clojure.
 
 (ns clojure.reader
-  (:refer-clojure :exclude [read-string])
+  (:refer-clojure :exclude [read read-string])
   (:import (java.io)
 	   (java.util.regex Pattern Matcher)
 	   (java.util ArrayList List Map)
-	   (java.math BigInteger BigDecimal)))
+	   (java.math BigInteger BigDecimal)
+	   (clojure.lang LineNumberingPushbackReader RT)))
 
 (in-ns 'clojure.reader)
 
@@ -23,6 +24,10 @@
 (def $slash '/)
 (def $clojure-slash `/)
 
+(def $macros {})
+(defn get-macro [char]
+  ($macros char))
+
 (defn read-string
   "Default reader function for double quote."
   [])
@@ -34,6 +39,68 @@
 (defn unread [reader char]
   (if (not (= char -1))
     (. reader (unread char))))
+
+;;; Implementation of ReaderException in separate source file.
+
+(defn read-number [])
+(defn read-token [])
+(defn interpret-token [])
+
+(defn read-unprotected [reader eof-is-error? eof-value recursive?]
+  (loop [char (. reader read)]
+    (cond (clojure-whitespace? char)
+	  (recur (. reader read))
+	  
+	  (= -1 char)
+	  (if eof-is-error?
+	    (throw (Exception. "EOF while reading."))
+	    eof-value)
+
+	  (. Character (isDigit char))
+	  (let [number (read-number reader char)]
+	    (if (. RT (suppressRead))
+	      nil
+	      number))
+
+	  (get-macro char)
+	  (let [result (get-macro char)]
+	    (cond (. RT (suppressRead))
+		  nil
+		  
+		  ;; No-op macros return the reader
+		  (identical? result reader)
+		  (recur (. reader read))
+
+		  true
+		  result))
+
+	  (or (= char \+) (= char \-))
+	  (let [char2 (. reader read)]
+	    (if (. Character (isDigit char))
+	      (do
+		(unread reader char2)
+		(let [number (read-number reader char)]
+		  (if (. RT (suppressRead))
+		    nil
+		    number)))
+	      (do
+		(unread reader char2)
+		(recur (. reader read)))))
+
+	  true
+	  (let [token (read-token reader char)]
+	    (if (. RT (suppressRead))
+	      nil
+	      (interpret-token token))))))
+
+(defn read [reader eof-is-error? eof-value recursive?]
+  (try
+   (read-unprotected reader eof-is-error? eof-value recursive?)
+   (catch Exception e
+     (if (or recursive?
+	     (not (instance? LineNumberingPushbackReader reader)))
+       (throw e)
+       (throw (clojure.reader.ReaderException. (. reader getLineNumber) e))))))
 
 (defn read-comment
   "Default reader function for semicolon.
